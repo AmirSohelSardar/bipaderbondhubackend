@@ -34,7 +34,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://blog.100jsprojects.com',
-  'https://mern-blog-client-steel.vercel.app',
+  'https://growthhubsite.vercel.app',
 ];
 
 app.use(
