@@ -1,6 +1,8 @@
 import NgoApplication from "../models/ngoApplication.model.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
-import puppeteer from "puppeteer";
+
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 /**
  * Generate Professional PVC ID Card HTML (FIXED LAYOUT)
@@ -330,14 +332,11 @@ const generateImageFromHTML = async (html) => {
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
-    });
+  args: chromium.args,
+  executablePath: await chromium.executablePath(),
+  headless: chromium.headless,
+});
+
 
     const page = await browser.newPage();
     
