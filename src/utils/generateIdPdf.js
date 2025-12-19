@@ -1,5 +1,7 @@
 import { uploadToCloudinary } from "../config/cloudinary.js";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
+
 
 
 /**
@@ -142,12 +144,18 @@ export const generateIdCardPDF = async (data) => {
 
 // Generate real PDF
 const browser = await puppeteer.launch({
-  headless: "new",
-  args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  args: chromium.args,
+  executablePath: await chromium.executablePath(),
+  headless: chromium.headless,
 });
 
 const page = await browser.newPage();
-await page.setContent(htmlTemplate, { waitUntil: "networkidle0" });
+await page.setBypassCSP(true);
+
+await page.setContent(htmlTemplate, { waitUntil: "load" });
+
+// ✅ wait until images load
+await page.waitForSelector("img", { timeout: 5000 });
 
 const pdfBuffer = await page.pdf({
   width: "85.6mm",

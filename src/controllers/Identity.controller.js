@@ -347,9 +347,13 @@ const generateImageFromHTML = async (html) => {
       deviceScaleFactor: 2 // High quality
     });
     
-    await page.setContent(html, {
-      waitUntil: 'networkidle0'
-    });
+    await page.setBypassCSP(true);
+
+await page.setContent(html, { waitUntil: "load" });
+
+// ✅ wait until logo & images load
+await page.waitForSelector("img", { timeout: 5000 });
+
 
     // ✅ TAKE SCREENSHOT INSTEAD OF PDF
     const imageBuffer = await page.screenshot({
