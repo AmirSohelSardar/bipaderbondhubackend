@@ -16,6 +16,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import path from "path";
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import userRoutes from './src/routes/user.route.js';
@@ -26,6 +27,7 @@ import cookieParser from 'cookie-parser';
 import uploadRoutes from './src/routes/upload.route.js';
 import { connectDB, testConnection, isConnected } from './src/config/db.js';
 import identityRoutes from "./src/routes/identity.route.js";
+
 
 
 // Configure environment variables
@@ -83,7 +85,11 @@ app.use(mongoSanitize());
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173'];
+  : [
+  'http://localhost:5173',
+  'https://bipaderbondhu.vercel.app'
+];
+
 
 app.use(
   cors({
@@ -124,7 +130,9 @@ app.use(cookieParser());
 // ============================================================
 // 📂 STATIC FILES (FOR LOGO, ETC.)
 // ============================================================
-app.use("/public", express.static("src/public"));
+
+app.use("/public", express.static(path.join(process.cwd(), "src/public")));
+
 
 
 
