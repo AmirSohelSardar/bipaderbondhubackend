@@ -83,7 +83,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [
       'http://localhost:5173',
-      'http://localhost:3000',
+      'http://localhost:3000',       // ✅ ADD COMMA
+      'https://bipaderbondhu.vercel.app',
     ];
 
 app.use(
