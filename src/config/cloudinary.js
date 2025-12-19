@@ -23,25 +23,35 @@ cloudinary.config({
 console.log('✅ Cloudinary configured successfully');
 
 /**
- * Upload image buffer to Cloudinary
+ * ✅ UPDATED: Upload image buffer to Cloudinary (NOW SUPPORTS RAW FILES)
  * @param {Buffer} buffer - Image buffer from multer
  * @param {String} folder - Cloudinary folder name (e.g., 'posts', 'profile-pictures')
  * @param {String} publicId - Optional custom public_id
+ * @param {String} resourceType - Resource type ('auto', 'image', 'raw', 'video')
  * @returns {Promise<Object>} - Upload result with secure_url
  */
-export const uploadToCloudinary = (buffer, folder = 'blog', publicId = null) => {
+export const uploadToCloudinary = (buffer, folder = 'blog', publicId = null, resourceType = 'auto') => {
   return new Promise((resolve, reject) => {
-    const uploadOptions = {
-      folder: folder,
-      resource_type: 'auto',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'], // ✅ REMOVED SVG for security
-      transformation: [
-        { quality: 'auto:good' }, // Auto quality optimization
-        { fetch_format: 'auto' }, // Auto format selection
-      ],
-      // Add size limits
-      max_bytes: 5 * 1024 * 1024, // 5MB limit
-    };
+   const uploadOptions = {
+  folder: folder,
+  resource_type: resourceType,
+  type: 'upload', // ✅ CRITICAL FIX - This makes files publicly accessible
+  access_mode: "public", // ✅ Ensure public access
+
+  // ✅ THIS IS THE CRITICAL FIX
+  format: resourceType === 'raw' ? 'pdf' : undefined,
+
+  allowed_formats: resourceType === 'raw'
+    ? undefined
+    : ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+
+  transformation: resourceType === 'raw'
+    ? undefined
+    : [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
+
+  max_bytes: 5 * 1024 * 1024,
+};
+
 
     // Add custom public_id if provided
     if (publicId) {
@@ -56,7 +66,7 @@ export const uploadToCloudinary = (buffer, folder = 'blog', publicId = null) => 
           console.error('❌ Cloudinary upload error:', error);
           reject(error);
         } else {
-          console.log('✅ Image uploaded to Cloudinary:', result.secure_url);
+          console.log('✅ File uploaded to Cloudinary:', result.secure_url);
           resolve(result);
         }
       }
@@ -107,7 +117,7 @@ export const extractPublicId = (imageUrl) => {
 };
 
 /**
- * ✅ IMPROVED: Delete image from Cloudinary by URL
+ * ✅ IMPROVED: Delete image/file from Cloudinary by URL (supports raw files too)
  * @param {String} imageUrl - Full Cloudinary image URL
  * @returns {Promise<Object>} - Deletion result
  */
@@ -128,22 +138,29 @@ export const deleteFromCloudinary = async (imageUrl) => {
 
     console.log('🗑️ Deleting from Cloudinary:', publicId);
 
+    // Determine resource type from URL
+    const isRawFile = imageUrl.includes('/raw/upload/');
+    const resourceType = isRawFile ? 'raw' : 'image';
+
     // Attempt deletion with retry logic
     let retries = 3;
     let lastError;
 
     while (retries > 0) {
       try {
-        const result = await cloudinary.uploader.destroy(publicId);
+        const result = await cloudinary.uploader.destroy(publicId, {
+          resource_type: resourceType,
+          invalidate: true
+        });
 
         if (result.result === 'ok') {
-          console.log('✅ Image deleted from Cloudinary');
+          console.log('✅ File deleted from Cloudinary');
           return result;
         } else if (result.result === 'not found') {
-          console.log('⚠️ Image not found on Cloudinary (may have been deleted already)');
+          console.log('⚠️ File not found on Cloudinary (may have been deleted already)');
           return result;
         } else {
-          console.log('⚠️ Image deletion result:', result.result);
+          console.log('⚠️ File deletion result:', result.result);
           return result;
         }
       } catch (error) {
@@ -243,6 +260,7 @@ export const uploadWithProgress = (buffer, folder = 'blog', onProgress = null) =
       {
         folder: folder,
         resource_type: 'auto',
+        type: 'upload', // ✅ Added for consistency
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'], // ✅ No SVG
         transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
         max_bytes: 5 * 1024 * 1024, // 5MB limit

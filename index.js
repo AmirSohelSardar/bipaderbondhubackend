@@ -25,6 +25,8 @@ import commentRoutes from './src/routes/comment.route.js';
 import cookieParser from 'cookie-parser';
 import uploadRoutes from './src/routes/upload.route.js';
 import { connectDB, testConnection, isConnected } from './src/config/db.js';
+import identityRoutes from "./src/routes/identity.route.js";
+
 
 // Configure environment variables
 if (process.env.NODE_ENV !== 'production') {
@@ -119,6 +121,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Cookie parser
 app.use(cookieParser());
+// ============================================================
+// 📂 STATIC FILES (FOR LOGO, ETC.)
+// ============================================================
+app.use("/public", express.static("src/public"));
+
+
 
 // ============================================================
 // 🧪 TEST & DEBUG ENDPOINTS
@@ -213,6 +221,8 @@ app.use('/api/upload', uploadLimiter, uploadRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/post', postRoutes);
 app.use('/api/comment', commentRoutes);
+app.use("/api/identity", identityRoutes);
+
 
 // ============================================================
 // 🚫 404 HANDLER
