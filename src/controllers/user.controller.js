@@ -1,35 +1,41 @@
 import bcryptjs from 'bcryptjs';
 import { errorHandler } from '../utils/error.js';
-import { supabase } from '../config/supabase.js';
+import User from '../models/user.model.js';
+import Post from '../models/post.model.js';
+import Comment from '../models/comment.model.js';
+import { deleteFromCloudinary } from '../config/cloudinary.js';
 
 export const test = (req, res) => {
   res.json({ message: 'API is working!' });
 };
 
+/**
+ * ✅ UPDATE USER
+ */
 export const updateUser = async (req, res, next) => {
   if (req.user.id !== req.params.userId) {
     return next(errorHandler(403, 'You are not allowed to update this user'));
   }
 
   try {
-    // ✅ First, get the user's auth provider
-    const { data: currentUserData } = await supabase
-      .from('users')
-      .select('auth_provider')
-      .eq('id', req.params.userId)
-      .single();
+    const currentUser = await User.findById(req.params.userId);
+    if (!currentUser) {
+      return next(errorHandler(404, 'User not found'));
+    }
 
     const updates = {};
 
-    // ✅ BLOCK password update for Google users
+    // 🔒 Block password update for Google users
     if (req.body.password) {
-      if (currentUserData?.auth_provider === 'google') {
+      if (currentUser.authProvider === 'google') {
         return next(
           errorHandler(400, 'Cannot update password for Google accounts')
         );
       }
       if (req.body.password.length < 6) {
-        return next(errorHandler(400, 'Password must be at least 6 characters'));
+        return next(
+          errorHandler(400, 'Password must be at least 6 characters')
+        );
       }
       updates.password = bcryptjs.hashSync(req.body.password, 10);
     }
@@ -46,95 +52,131 @@ export const updateUser = async (req, res, next) => {
       if (req.body.username !== req.body.username.toLowerCase()) {
         return next(errorHandler(400, 'Username must be lowercase'));
       }
-      if (!req.body.username.match(/^[a-zA-Z0-9]+$/)) {
+      if (!req.body.username.match(/^[a-z0-9]+$/)) {
         return next(
-          errorHandler(400, 'Username can only contain letters and numbers')
+          errorHandler(
+            400,
+            'Username can only contain lowercase letters and numbers'
+          )
         );
       }
       updates.username = req.body.username;
     }
 
     if (req.body.email) {
-      updates.email = req.body.email;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(req.body.email)) {
+        return next(errorHandler(400, 'Please provide a valid email'));
+      }
+      updates.email = req.body.email.toLowerCase().trim();
     }
 
+    // ✅ FIXED: Handle profile picture update with proper cleanup
     if (req.body.profilePicture) {
-      updates.profile_picture = req.body.profilePicture;
+      // If updating to a new Cloudinary image, delete the old one (but not Google photos or default)
+      if (
+        currentUser.profilePicture &&
+        currentUser.profilePicture.includes('cloudinary.com') &&
+        req.body.profilePicture !== currentUser.profilePicture
+      ) {
+        // Delete old Cloudinary image
+        await deleteFromCloudinary(currentUser.profilePicture);
+      }
+
+      updates.profilePicture = req.body.profilePicture;
     }
 
-    // Add updated_at timestamp
-    updates.updated_at = new Date().toISOString();
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
 
-    const { data: updatedUser, error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', req.params.userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    const { password, ...rest } = updatedUser;
-    res.status(200).json({
-      ...rest,
-      _id: rest.id,
-      isAdmin: rest.is_admin,
-      profilePicture: rest.profile_picture,
-      authProvider: rest.auth_provider,
-      createdAt: rest.created_at,
-      updatedAt: rest.updated_at,
-    });
+    const { password, ...rest } = updatedUser._doc;
+    res.status(200).json(rest);
   } catch (error) {
+    // Handle duplicate username/email error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return next(errorHandler(400, `This ${field} is already taken`));
+    }
     next(error);
   }
 };
 
+/**
+ * ✅ DELETE USER - WITH CASCADING DELETES
+ * 🔴 CRITICAL FIX: Now deletes user's posts and comments
+ */
 export const deleteUser = async (req, res, next) => {
   if (!req.user.isAdmin && req.user.id !== req.params.userId) {
     return next(errorHandler(403, 'You are not allowed to delete this user'));
   }
 
   try {
-    // Get user data first to find their profile picture
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
-      .select('profile_picture')
-      .eq('id', req.params.userId)
-      .single();
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return next(errorHandler(404, 'User not found'));
+    }
 
-    if (fetchError) throw fetchError;
+    // ✅ FIXED: Cascading delete - Delete all user's posts and comments
+    console.log(`🗑️ Deleting user ${user.username} and all their content...`);
 
-    // Delete profile picture from storage if it exists and is not a Google profile
-    if (user?.profile_picture && !user.profile_picture.includes('googleusercontent.com')) {
-      // Extract the file path from the URL
-      const urlParts = user.profile_picture.split('/profile-pictures/');
-      if (urlParts.length > 1) {
-        const filePath = urlParts[1];
-        
-        await supabase.storage
-          .from('posts')
-          .remove([`profile-pictures/${filePath}`]);
+    // 1. Get all user's posts to delete their images
+    const userPosts = await Post.find({ userId: req.params.userId });
+
+    // 2. Delete all images from user's posts
+    for (const post of userPosts) {
+      if (post.image && post.image.includes('cloudinary.com')) {
+        await deleteFromCloudinary(post.image);
       }
     }
 
-    // Delete user from database
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', req.params.userId);
+    // 3. Delete all user's posts
+    const deletedPosts = await Post.deleteMany({ userId: req.params.userId });
+    console.log(`   ✅ Deleted ${deletedPosts.deletedCount} posts`);
 
-    if (error) throw error;
+    // 4. Delete all user's comments
+    const deletedComments = await Comment.deleteMany({ userId: req.params.userId });
+    console.log(`   ✅ Deleted ${deletedComments.deletedCount} comments`);
 
-    res.status(200).json('User has been deleted');
+    // 5. Delete profile picture from Cloudinary (if not Google image or default)
+    if (
+      user.profilePicture &&
+      !user.profilePicture.includes('googleusercontent.com') &&
+      !user.profilePicture.includes('pixabay.com') &&
+      user.profilePicture.includes('cloudinary.com')
+    ) {
+      await deleteFromCloudinary(user.profilePicture);
+      console.log(`   ✅ Deleted profile picture`);
+    }
+
+    // 6. Finally, delete the user
+    await User.findByIdAndDelete(req.params.userId);
+    console.log(`   ✅ Deleted user account`);
+
+    res.status(200).json({
+      message: 'User has been deleted',
+      deletedPosts: deletedPosts.deletedCount,
+      deletedComments: deletedComments.deletedCount,
+    });
   } catch (error) {
+    console.error('Error during user deletion:', error);
     next(error);
   }
 };
 
+/**
+ * ✅ SIGN OUT
+ */
 export const signout = (req, res, next) => {
   try {
     res
-      .clearCookie('access_token')
+      .clearCookie('access_token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      })
       .status(200)
       .json('User has been signed out');
   } catch (error) {
@@ -142,6 +184,9 @@ export const signout = (req, res, next) => {
   }
 };
 
+/**
+ * ✅ GET ALL USERS (Admin)
+ */
 export const getUsers = async (req, res, next) => {
   if (!req.user.isAdmin) {
     return next(errorHandler(403, 'You are not allowed to see all users'));
@@ -150,47 +195,25 @@ export const getUsers = async (req, res, next) => {
   try {
     const startIndex = parseInt(req.query.startIndex) || 0;
     const limit = parseInt(req.query.limit) || 9;
-    const sortDirection = req.query.sort === 'asc' ? 'asc' : 'desc';
+    const sortDirection = req.query.sort === 'asc' ? 1 : -1;
 
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: sortDirection === 'asc' })
-      .range(startIndex, startIndex + limit - 1);
+    const users = await User.find()
+      .sort({ createdAt: sortDirection })
+      .skip(startIndex)
+      .limit(limit)
+      .select('-password'); // Don't include password field
 
-    if (error) throw error;
+    const totalUsers = await User.countDocuments();
 
-    const usersWithoutPassword = users.map((user) => {
-      const { password, ...rest } = user;
-      return {
-        ...rest,
-        _id: rest.id,
-        isAdmin: rest.is_admin,
-        profilePicture: rest.profile_picture,
-        authProvider: rest.auth_provider,
-        createdAt: rest.created_at,
-        updatedAt: rest.updated_at,
-      };
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const lastMonthUsers = await User.countDocuments({
+      createdAt: { $gte: oneMonthAgo },
     });
 
-    const { count: totalUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
-
-    const now = new Date();
-    const oneMonthAgo = new Date(
-      now.getFullYear(),
-      now.getMonth() - 1,
-      now.getDate()
-    );
-
-    const { count: lastMonthUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', oneMonthAgo.toISOString());
-
     res.status(200).json({
-      users: usersWithoutPassword,
+      users,
       totalUsers,
       lastMonthUsers,
     });
@@ -199,28 +222,18 @@ export const getUsers = async (req, res, next) => {
   }
 };
 
+/**
+ * ✅ GET SINGLE USER
+ */
 export const getUser = async (req, res, next) => {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', req.params.userId)
-      .single();
-
-    if (error || !user) {
+    const user = await User.findById(req.params.userId).select('-password');
+    
+    if (!user) {
       return next(errorHandler(404, 'User not found'));
     }
 
-    const { password, ...rest } = user;
-    res.status(200).json({
-      ...rest,
-      _id: rest.id,
-      isAdmin: rest.is_admin,
-      profilePicture: rest.profile_picture,
-      authProvider: rest.auth_provider,
-      createdAt: rest.created_at,
-      updatedAt: rest.updated_at,
-    });
+    res.status(200).json(user);
   } catch (error) {
     next(error);
   }

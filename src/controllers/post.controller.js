@@ -1,87 +1,89 @@
-import { supabase } from '../config/supabase.js';
+import Post from '../models/post.model.js';
 import { errorHandler } from '../utils/error.js';
+import { deleteFromCloudinary } from '../config/cloudinary.js';
+import Comment from '../models/comment.model.js';
 
+/**
+ * ✅ CREATE POST (Admin only)
+ */
 export const create = async (req, res, next) => {
-  if (!req.user.isAdmin) {
-    return next(errorHandler(403, 'You are not allowed to create a post'));
-  }
-  if (!req.body.title || !req.body.content) {
-    return next(errorHandler(400, 'Please provide all required fields'));
-  }
-
-  const slug = req.body.title
-    .split(' ')
-    .join('-')
-    .toLowerCase()
-    .replace(/[^a-zA-Z0-9-]/g, '');
-
   try {
-    const { data: savedPost, error } = await supabase
-      .from('posts')
-      .insert([
-        {
-          title: req.body.title,
-          content: req.body.content,
-          image: req.body.image,
-          category: req.body.category,
-          slug,
-          user_id: req.user.id,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === '23505') {
-        return next(errorHandler(400, 'Title or slug already exists'));
-      }
-      throw error;
+    if (!req.user.isAdmin) {
+      return next(errorHandler(403, 'You are not allowed to create a post'));
     }
 
-    res.status(201).json({
-      ...savedPost,
-      _id: savedPost.id,
-      userId: savedPost.user_id,
-      createdAt: savedPost.created_at,
-      updatedAt: savedPost.updated_at,
+    const { title, content, image, category } = req.body;
+
+    if (!title || !content) {
+      return next(errorHandler(400, 'Please provide all required fields'));
+    }
+
+    // Validate content length
+    if (content.length > 100000) {
+      return next(errorHandler(400, 'Content is too long. Maximum 100,000 characters allowed'));
+    }
+
+    // Validate title length
+    if (title.length < 3 || title.length > 200) {
+      return next(errorHandler(400, 'Title must be between 3 and 200 characters'));
+    }
+
+    const slug = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9 ]/g, '')
+      .split(' ')
+      .join('-');
+
+    const newPost = new Post({
+      title,
+      content,
+      image: image || '',
+      category: category || 'uncategorized',
+      slug,
+      userId: req.user.id,
     });
+
+    const savedPost = await newPost.save();
+
+    res.status(201).json(savedPost);
   } catch (error) {
+    if (error.code === 11000) {
+      return next(errorHandler(400, 'Title or slug already exists'));
+    }
     next(error);
   }
 };
 
+/**
+ * ✅ GET POSTS (Search, Filter, Pagination)
+ */
 export const getposts = async (req, res, next) => {
   try {
     const startIndex = parseInt(req.query.startIndex) || 0;
     const limit = parseInt(req.query.limit) || 9;
-    const sortDirection = req.query.order === 'asc' ? 'asc' : 'desc';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
 
-    let query = supabase.from('posts').select('*', { count: 'exact' });
+    const query = {};
 
-    // Apply filters
-    if (req.query.userId) {
-      query = query.eq('user_id', req.query.userId);
-    }
-    if (req.query.category) {
-      query = query.eq('category', req.query.category);
-    }
-    if (req.query.slug) {
-      query = query.eq('slug', req.query.slug);
-    }
-    if (req.query.postId) {
-      query = query.eq('id', req.query.postId);
-    }
+    if (req.query.userId) query.userId = req.query.userId;
+    if (req.query.category) query.category = req.query.category;
+    if (req.query.slug) query.slug = req.query.slug;
+    if (req.query.postId) query._id = req.query.postId;
+
     if (req.query.searchTerm) {
-      query = query.or(
-        `title.ilike.%${req.query.searchTerm}%,content.ilike.%${req.query.searchTerm}%`
-      );
+      query.$or = [
+        { title: { $regex: req.query.searchTerm, $options: 'i' } },
+        { content: { $regex: req.query.searchTerm, $options: 'i' } },
+      ];
     }
 
-    const { data: posts, error, count: totalPosts } = await query
-      .order('updated_at', { ascending: sortDirection === 'asc' })
-      .range(startIndex, startIndex + limit - 1);
+    const posts = await Post.find(query)
+      .sort({ updatedAt: sortOrder })
+      .skip(startIndex)
+      .limit(limit);
 
-    if (error) throw error;
+    const totalPosts = await Post.countDocuments(query);
 
     const now = new Date();
     const oneMonthAgo = new Date(
@@ -90,21 +92,12 @@ export const getposts = async (req, res, next) => {
       now.getDate()
     );
 
-    const { count: lastMonthPosts } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', oneMonthAgo.toISOString());
-
-    const formattedPosts = posts.map((post) => ({
-      ...post,
-      _id: post.id,
-      userId: post.user_id,
-      createdAt: post.created_at,
-      updatedAt: post.updated_at,
-    }));
+    const lastMonthPosts = await Post.countDocuments({
+      createdAt: { $gte: oneMonthAgo },
+    });
 
     res.status(200).json({
-      posts: formattedPosts,
+      posts,
       totalPosts,
       lastMonthPosts,
     });
@@ -113,59 +106,37 @@ export const getposts = async (req, res, next) => {
   }
 };
 
+/**
+ * ✅ DELETE POST (Admin OR Owner)
+ * 🔴 CRITICAL FIX: Changed || to && for proper authorization
+ */
 export const deletepost = async (req, res, next) => {
-  if (!req.user.isAdmin || req.user.id !== req.params.userId) {
-    return next(errorHandler(403, 'You are not allowed to delete this post'));
-  }
-
   try {
-    // Get post data first to find the image
-    const { data: post, error: fetchError } = await supabase
-      .from('posts')
-      .select('image')
-      .eq('id', req.params.postId)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    // Delete image from storage if it exists
-    if (post?.image) {
-      try {
-        // Extract the file path from the URL
-        // URL format: https://[project].supabase.co/storage/v1/object/public/posts/posts/filename.jpg
-        // We need: posts/filename.jpg
-        
-        const url = post.image;
-        
-        // Split by '/object/public/posts/' to get everything after
-        if (url.includes('/object/public/posts/')) {
-          const pathAfterBucket = url.split('/object/public/posts/')[1];
-          // pathAfterBucket will be: "posts/1764246856846_img4.jpg"
-          
-          console.log('Deleting file from storage:', pathAfterBucket);
-          
-          const { data: deleteData, error: storageError } = await supabase.storage
-            .from('posts')
-            .remove([pathAfterBucket]);
-
-          if (storageError) {
-            console.error('Storage deletion error:', storageError);
-          } else {
-            console.log('File deleted successfully:', deleteData);
-          }
-        }
-      } catch (storageErr) {
-        console.error('Error deleting image from storage:', storageErr);
-      }
+    // ✅ FIXED: Must be admin AND owner (not OR)
+    // This now correctly allows: admin OR post owner to delete
+    if (!req.user.isAdmin && req.user.id !== req.params.userId) {
+      return next(errorHandler(403, 'You are not allowed to delete this post'));
     }
 
-    // Delete post from database
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', req.params.postId);
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return next(errorHandler(404, 'Post not found'));
+    }
 
-    if (error) throw error;
+    // Additional check: verify the post belongs to the userId in params
+    if (post.userId.toString() !== req.params.userId && !req.user.isAdmin) {
+      return next(errorHandler(403, 'You are not allowed to delete this post'));
+    }
+
+    // Delete all comments of this post
+    await Comment.deleteMany({ postId: req.params.postId });
+
+    // 🔥 Delete image from Cloudinary if exists
+    if (post.image) {
+      await deleteFromCloudinary(post.image);
+    }
+
+    await post.deleteOne();
 
     res.status(200).json('The post has been deleted');
   } catch (error) {
@@ -173,35 +144,65 @@ export const deletepost = async (req, res, next) => {
   }
 };
 
+/**
+ * ✅ UPDATE POST (Admin OR Owner)
+ * 🔴 CRITICAL FIX: Changed || to && for proper authorization
+ */
 export const updatepost = async (req, res, next) => {
-  if (!req.user.isAdmin || req.user.id !== req.params.userId) {
-    return next(errorHandler(403, 'You are not allowed to update this post'));
-  }
-
   try {
-    const updates = {};
-    if (req.body.title) updates.title = req.body.title;
-    if (req.body.content) updates.content = req.body.content;
-    if (req.body.category) updates.category = req.body.category;
-    if (req.body.image) updates.image = req.body.image;
+    // ✅ FIXED: Must be admin AND owner (not OR)
+    // This now correctly allows: admin OR post owner to update
+    if (!req.user.isAdmin && req.user.id !== req.params.userId) {
+      return next(errorHandler(403, 'You are not allowed to update this post'));
+    }
 
-    const { data: updatedPost, error } = await supabase
-      .from('posts')
-      .update(updates)
-      .eq('id', req.params.postId)
-      .select()
-      .single();
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return next(errorHandler(404, 'Post not found'));
+    }
 
-    if (error) throw error;
+    // Additional check: verify the post belongs to the userId in params
+    if (post.userId.toString() !== req.params.userId && !req.user.isAdmin) {
+      return next(errorHandler(403, 'You are not allowed to update this post'));
+    }
 
-    res.status(200).json({
-      ...updatedPost,
-      _id: updatedPost.id,
-      userId: updatedPost.user_id,
-      createdAt: updatedPost.created_at,
-      updatedAt: updatedPost.updated_at,
-    });
+    // Validate content length if provided
+    if (req.body.content && req.body.content.length > 100000) {
+      return next(errorHandler(400, 'Content is too long. Maximum 100,000 characters allowed'));
+    }
+
+    // Validate title length if provided
+    if (req.body.title && (req.body.title.length < 3 || req.body.title.length > 200)) {
+      return next(errorHandler(400, 'Title must be between 3 and 200 characters'));
+    }
+
+    // 🔥 If image changed, delete old Cloudinary image
+    if (req.body.image && post.image && req.body.image !== post.image) {
+      await deleteFromCloudinary(post.image);
+    }
+
+    if (req.body.title) {
+      post.title = req.body.title;
+      post.slug = req.body.title
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9 ]/g, '')
+        .split(' ')
+        .join('-');
+    }
+
+    if (req.body.content) post.content = req.body.content;
+    if (req.body.category) post.category = req.body.category;
+    if (req.body.image) post.image = req.body.image;
+
+    const updatedPost = await post.save();
+
+    res.status(200).json(updatedPost);
   } catch (error) {
+    // Handle duplicate slug error
+    if (error.code === 11000) {
+      return next(errorHandler(400, 'A post with this title already exists'));
+    }
     next(error);
   }
 };

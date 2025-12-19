@@ -6,11 +6,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true, // ✅ Add index
     },
     email: {
       type: String,
       required: true,
       unique: true,
+      index: true, // ✅ Add index
     },
     password: {
       type: String,
@@ -24,6 +26,12 @@ const userSchema = new mongoose.Schema(
     isAdmin: {
       type: Boolean,
       default: false,
+      index: true, // ✅ Add index
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
   },
   { timestamps: true }

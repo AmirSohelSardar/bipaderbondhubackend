@@ -1,20 +1,25 @@
-import { supabase, formatUser } from '../config/supabase.js';
+import User from '../models/user.model.js';
 import bcryptjs from 'bcryptjs';
 import { errorHandler } from '../utils/error.js';
 import jwt from 'jsonwebtoken';
 
-// ✅ Centralized cookie options
-const getCookieOptions = () => ({
-  httpOnly: true,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  secure: process.env.NODE_ENV === 'production',
-  path: '/', // ✅ CRITICAL: Ensure cookie is available on all paths
-});
+// Cookie configuration for production
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  return {
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    path: '/',
+  };
+};
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
 
+  // Validate input
   if (
     !username ||
     !email ||
@@ -26,30 +31,49 @@ export const signup = async (req, res, next) => {
     return next(errorHandler(400, 'All fields are required'));
   }
 
+  // Validate username
+  if (username.length < 7 || username.length > 20) {
+    return next(errorHandler(400, 'Username must be between 7 and 20 characters'));
+  }
+
+  if (username !== username.toLowerCase()) {
+    return next(errorHandler(400, 'Username must be lowercase'));
+  }
+
+  if (!username.match(/^[a-z0-9]+$/)) {
+    return next(errorHandler(400, 'Username can only contain lowercase letters and numbers'));
+  }
+
+  // Validate email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return next(errorHandler(400, 'Please provide a valid email'));
+  }
+
+  // Sanitize email
+  const sanitizedEmail = email.toLowerCase().trim();
+
+  // Validate password
+  if (password.length < 6) {
+    return next(errorHandler(400, 'Password must be at least 6 characters'));
+  }
+
   const hashedPassword = bcryptjs.hashSync(password, 10);
 
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .insert([
-        {
-          username,
-          email,
-          password: hashedPassword,
-        },
-      ])
-      .select()
-      .single();
+    const newUser = new User({
+      username,
+      email: sanitizedEmail,
+      password: hashedPassword,
+      authProvider: 'local',
+    });
 
-    if (error) {
-      if (error.code === '23505') {
-        return next(errorHandler(400, 'Username or email already exists'));
-      }
-      throw error;
-    }
-
+    await newUser.save();
     res.json('Signup successful');
   } catch (error) {
+    if (error.code === 11000) {
+      return next(errorHandler(400, 'Username or email already exists'));
+    }
     next(error);
   }
 };
@@ -61,14 +85,13 @@ export const signin = async (req, res, next) => {
     return next(errorHandler(400, 'All fields are required'));
   }
 
-  try {
-    const { data: validUser, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+  // Sanitize email
+  const sanitizedEmail = email.toLowerCase().trim();
 
-    if (error || !validUser) {
+  try {
+    const validUser = await User.findOne({ email: sanitizedEmail });
+
+    if (!validUser) {
       return next(errorHandler(404, 'User not found'));
     }
 
@@ -78,26 +101,17 @@ export const signin = async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { id: validUser.id, isAdmin: validUser.is_admin },
-      process.env.JWT_SECRET
+      { id: validUser._id, isAdmin: validUser.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
-    const { password: pass, ...rest } = validUser;
-
-    console.log('✅ Setting cookie for signin');
+    const { password: pass, ...rest } = validUser._doc;
     
     res
       .status(200)
       .cookie('access_token', token, getCookieOptions())
-      .json({
-        ...rest,
-        _id: rest.id,
-        isAdmin: rest.is_admin,
-        profilePicture: rest.profile_picture,
-        authProvider: rest.auth_provider,
-        createdAt: rest.created_at,
-        updatedAt: rest.updated_at,
-      });
+      .json(rest);
   } catch (error) {
     next(error);
   }
@@ -106,149 +120,91 @@ export const signin = async (req, res, next) => {
 export const google = async (req, res, next) => {
   const { email, name, googlePhotoUrl } = req.body;
 
-  console.log('🔵 Google OAuth attempt:', { 
-    email, 
-    name, 
-    googlePhotoUrl,
-    hasPhoto: !!googlePhotoUrl 
-  });
+  // Validate input
+  if (!email || !name) {
+    return next(errorHandler(400, 'Email and name are required'));
+  }
+
+  // Sanitize email
+  const sanitizedEmail = email.toLowerCase().trim();
 
   try {
-    const { data: user, error: findError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    let user = await User.findOne({ email: sanitizedEmail });
 
     if (user) {
-      console.log('🟡 Existing user found');
-      console.log('📸 Current profile_picture in DB:', user.profile_picture);
-      
-      // Check if user has a custom uploaded photo (from Supabase storage)
-      const hasCustomPhoto = user.profile_picture && 
-                            user.profile_picture.includes('supabase.co/storage');
-      
-      console.log('🔍 Has custom uploaded photo:', hasCustomPhoto);
-      
-      let updateData = {
-        auth_provider: 'google',
-        updated_at: new Date().toISOString(),
-      };
-      
-      // Only update profile picture if user doesn't have a custom uploaded photo
-      if (!hasCustomPhoto) {
-        console.log('✅ No custom photo found, updating with Google photo');
-        updateData.profile_picture = googlePhotoUrl;
-      } else {
-        console.log('⚠️ Custom photo exists, keeping it:', user.profile_picture);
+      // ✅ FIXED: Simplified profile picture logic
+      // Only update to Google photo if user has NO custom Cloudinary photo
+      const hasCloudinaryPhoto = user.profilePicture && 
+                                  user.profilePicture.includes('cloudinary.com');
+
+      // If user doesn't have a custom Cloudinary photo, update to Google photo
+      if (!hasCloudinaryPhoto && googlePhotoUrl) {
+        user.profilePicture = googlePhotoUrl;
+      }
+      // If they have a Cloudinary photo, keep it (don't overwrite with Google photo)
+
+      // Update authProvider to track that they've used Google
+      if (user.authProvider !== 'google') {
+        user.authProvider = 'google';
       }
       
-      // Update user
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('email', email)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-        throw updateError;
-      }
-
-      console.log('🟢 User updated in DB:', {
-        id: updatedUser.id,
-        profile_picture: updatedUser.profile_picture
-      });
+      await user.save();
 
       const token = jwt.sign(
-        { id: updatedUser.id, isAdmin: updatedUser.is_admin },
-        process.env.JWT_SECRET
+        { id: user._id, isAdmin: user.isAdmin },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
       );
       
-      const { password, ...rest } = updatedUser;
-
-      // Return with proper camelCase formatting
-      const responseData = {
-        ...rest,
-        _id: rest.id,
-        isAdmin: rest.is_admin,
-        profilePicture: rest.profile_picture,
-        authProvider: rest.auth_provider,
-        createdAt: rest.created_at,
-        updatedAt: rest.updated_at,
-      };
-
-      console.log('🟣 Sending response with profilePicture:', responseData.profilePicture);
-      console.log('✅ Setting cookie for Google OAuth (existing user)');
+      const { password, ...rest } = user._doc;
 
       return res
         .status(200)
         .cookie('access_token', token, getCookieOptions())
-        .json(responseData);
+        .json(rest);
     } else {
-      console.log('🟡 New user, creating account');
-      
-      // Create new user with Google photo
+      // Create new user with Google account
+      // ✅ FIXED: Better username generation with more random digits
+      const baseUsername = name.toLowerCase().split(' ').join('');
+      const randomSuffix = Math.random().toString(36).slice(-8); // 8 characters instead of 4
+      const username = baseUsername + randomSuffix;
+
       const generatedPassword =
         Math.random().toString(36).slice(-8) +
         Math.random().toString(36).slice(-8);
       const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
 
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert([
-          {
-            username:
-              name.toLowerCase().split(' ').join('') +
-              Math.random().toString(9).slice(-4),
-            email,
-            password: hashedPassword,
-            profile_picture: googlePhotoUrl,
-            auth_provider: 'google',
-          },
-        ])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ Insert error:', insertError);
-        throw insertError;
-      }
-
-      console.log('🟢 New user created in DB:', {
-        id: newUser.id,
-        profile_picture: newUser.profile_picture
+      const newUser = new User({
+        username,
+        email: sanitizedEmail,
+        password: hashedPassword,
+        profilePicture: googlePhotoUrl || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png',
+        authProvider: 'google',
       });
 
+      await newUser.save();
+
       const token = jwt.sign(
-        { id: newUser.id, isAdmin: newUser.is_admin },
-        process.env.JWT_SECRET
+        { id: newUser._id, isAdmin: newUser.isAdmin },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
       );
       
-      const { password, ...rest } = newUser;
-
-      // Return with proper camelCase formatting
-      const responseData = {
-        ...rest,
-        _id: rest.id,
-        isAdmin: rest.is_admin,
-        profilePicture: rest.profile_picture,
-        authProvider: rest.auth_provider,
-        createdAt: rest.created_at,
-        updatedAt: rest.updated_at,
-      };
-
-      console.log('🟣 Sending response with profilePicture:', responseData.profilePicture);
-      console.log('✅ Setting cookie for Google OAuth (new user)');
+      const { password, ...rest } = newUser._doc;
 
       return res
         .status(200)
         .cookie('access_token', token, getCookieOptions())
-        .json(responseData);
+        .json(rest);
     }
   } catch (error) {
-    console.error('❌ Google OAuth error:', error);
+    console.error('Google OAuth error:', error);
+    
+    // Handle duplicate username error (rare but possible)
+    if (error.code === 11000) {
+      return next(errorHandler(400, 'Account creation failed. Please try again.'));
+    }
+    
     next(error);
   }
 };
