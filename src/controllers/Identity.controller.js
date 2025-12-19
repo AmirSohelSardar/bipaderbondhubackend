@@ -1,18 +1,15 @@
 import NgoApplication from "../models/ngoApplication.model.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
-
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
 /**
- * Generate Professional PVC ID Card HTML (FIXED LAYOUT)
- * Standard PVC Card Size: 85.6mm x 54mm (3.375" x 2.125")
- * Scaled to 1200x758px for high quality print
+ * ✅ Generate Professional PVC ID Card HTML
+ * Using Cloudinary logo URL with proper CORS handling
  */
 const generateIdCardHTML = (data) => {
   const { name, address, phone, bloodGroup, joiningDate, ngoId, photoUrl } = data;
   
-  // Calculate validity year (5 years from joining)
   const joinYear = new Date(joiningDate).getFullYear();
   const validYear = joinYear + 5;
 
@@ -254,11 +251,9 @@ const generateIdCardHTML = (data) => {
     <div class="card-header">
       <div class="org-info">
         <div class="org-logo">
-          <img 
-            src="https://bipaderbondhubackend-server.vercel.app/public/logo.png" 
-            alt="NPBB"
-            onerror="this.style.display='none'; this.parentElement.innerHTML='NPBB';"
-            crossorigin="anonymous"
+          <img
+            src="https://res.cloudinary.com/dfi3ywweg/image/upload/v1766182088/logo_l5jdsw.png"
+            alt="NPBB Logo"
           />
         </div>
         <div class="org-name">
@@ -273,7 +268,7 @@ const generateIdCardHTML = (data) => {
     
     <div class="card-body">
       <div class="photo-section">
-        <img class="member-photo" src="${photoUrl}" alt="Member Photo" crossorigin="anonymous" />
+        <img class="member-photo" src="${photoUrl}" alt="Member Photo" />
       </div>
       
       <div class="info-section">
@@ -307,7 +302,7 @@ const generateIdCardHTML = (data) => {
         </div>
         
         <div class="qr-section">
-          <img class="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${ngoId}" alt="QR" crossorigin="anonymous" />
+          <img class="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${ngoId}" alt="QR" />
         </div>
         
         <div class="validity-badge">
@@ -326,45 +321,88 @@ const generateIdCardHTML = (data) => {
 };
 
 /**
- * ✅ FIXED: Generate IMAGE from HTML using Puppeteer (NOT PDF)
+ * ✅ OPTIMIZED: Generate IMAGE from HTML with Cloudinary logo
  */
 const generateImageFromHTML = async (html) => {
   let browser;
   try {
+    console.log("🚀 Launching browser...");
+    
     browser = await puppeteer.launch({
-  args: chromium.args,
-  executablePath: await chromium.executablePath(),
-  headless: chromium.headless,
-});
-
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+      ],
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
 
     const page = await browser.newPage();
     
-    // Set viewport to match card size (PVC card ratio scaled up for quality)
     await page.setViewport({
       width: 1200,
       height: 758,
-      deviceScaleFactor: 2 // High quality
+      deviceScaleFactor: 2
     });
     
     await page.setBypassCSP(true);
+    
+    console.log("📄 Loading HTML content...");
+    
+    await page.setContent(html, { 
+      waitUntil: ["networkidle0", "load"],
+      timeout: 30000 
+    });
 
-await page.setContent(html, { waitUntil: "load" });
+    console.log("⏳ Waiting for all images to load...");
 
-// ✅ wait until logo & images load
-await page.waitForSelector("img", { timeout: 5000 });
+    // Wait for ALL images to load (logo, member photo, QR code)
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'));
+      
+      await Promise.all(
+        images.map(img => {
+          if (img.complete && img.naturalHeight !== 0) {
+            return Promise.resolve();
+          }
+          
+          return new Promise((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => {
+              console.error('Failed to load:', img.src);
+              resolve(); // Don't block on error
+            };
+            
+            // Force reload
+            const src = img.src;
+            img.src = '';
+            img.src = src;
+          });
+        })
+      );
+    });
 
+    // Extra wait for complete rendering
+    await page.waitForTimeout(2000);
 
-    // ✅ TAKE SCREENSHOT INSTEAD OF PDF
+    console.log("📸 Taking screenshot...");
+
     const imageBuffer = await page.screenshot({
       type: 'png',
-      fullPage: false
+      fullPage: false,
+      omitBackground: false
     });
+
+    console.log("✅ Screenshot generated successfully!");
 
     await browser.close();
     return imageBuffer;
 
   } catch (error) {
+    console.error("❌ Puppeteer error:", error);
     if (browser) await browser.close();
     throw error;
   }
@@ -437,7 +475,7 @@ export const applyForId = async (req, res) => {
       photoUrl: photoUpload.secure_url,
     });
 
-    console.log("📸 Converting HTML to Image...");
+    console.log("📸 Converting HTML to Image (this may take 10-15 seconds)...");
     const imageBuffer = await generateImageFromHTML(idCardHtml);
 
     console.log("📤 Uploading ID Card Image to Cloudinary...");
@@ -530,7 +568,7 @@ export const checkApplication = async (req, res) => {
 };
 
 /**
- * ✅ FIXED: Download ID Card Image (Direct Cloudinary URL - Always works)
+ * Download ID Card Image
  * GET /api/identity/download/:id
  */
 export const downloadImage = async (req, res) => {
@@ -559,7 +597,6 @@ export const downloadImage = async (req, res) => {
 
     console.log("✅ Returning image URL:", application.imageUrl);
 
-    // Return the direct Cloudinary image URL - frontend will handle download
     res.status(200).json({
       success: true,
       imageUrl: application.imageUrl,
@@ -642,7 +679,7 @@ export const getAllApplications = async (req, res) => {
 };
 
 /**
- * DELETE APPLICATION (Admin) - WITH CLOUDINARY CLEANUP
+ * DELETE APPLICATION (Admin)
  * DELETE /api/identity/admin/application/:id
  */
 export const deleteApplication = async (req, res) => {
@@ -667,7 +704,6 @@ export const deleteApplication = async (req, res) => {
       });
     }
 
-    // Delete from Cloudinary
     console.log("🗑️ Deleting files from Cloudinary...");
     
     if (application.photoUrl) {
@@ -678,7 +714,6 @@ export const deleteApplication = async (req, res) => {
       await deleteFromCloudinary(application.imageUrl);
     }
 
-    // Delete from database
     await NgoApplication.findByIdAndDelete(id);
 
     console.log("✅ Application and files deleted successfully");
