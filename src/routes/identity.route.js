@@ -10,6 +10,7 @@ import {
   downloadImage,
   verifyApplication,
   rejectApplication,
+  fixOldData,
 } from "../controllers/Identity.controller.js";
 
 const router = express.Router();
@@ -38,5 +39,6 @@ router.delete("/admin/application/:id", deleteApplication);
 router.get("/admin/application/:id", getSingleApplication);
 router.put("/admin/application/:id/verify", verifyApplication);
 router.put("/admin/application/:id/reject", rejectApplication);
+router.put("/admin/fix-old-data", fixOldData);
 
 export default router;

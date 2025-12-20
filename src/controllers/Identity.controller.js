@@ -829,3 +829,37 @@ export const rejectApplication = async (req, res) => {
     });
   }
 };
+
+/**
+ * FIX OLD DATA - Update "approved" to "verified"
+ */
+export const fixOldData = async (req, res) => {
+  try {
+    const adminToken = req.headers.authorization;
+    
+    if (adminToken !== "Bearer admin_authenticated") {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // Update all "approved" status to "verified"
+    const result = await NgoApplication.updateMany(
+      { status: "approved" },
+      { $set: { status: "verified" } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Fixed ${result.modifiedCount} old records`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("❌ Fix old data error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
+    });
+  }
+};
