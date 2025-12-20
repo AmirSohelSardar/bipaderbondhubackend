@@ -1,20 +1,31 @@
+
+
+
+
 import NgoApplication from "../models/ngoApplication.model.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
-
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
 /**
- * Generate Professional PVC ID Card HTML (FIXED LAYOUT)
- * Standard PVC Card Size: 85.6mm x 54mm (3.375" x 2.125")
- * Scaled to 1200x758px for high quality print
+ * ✅ FIXED: Launch Puppeteer based on environment
+ */
+const launchBrowser = async () => {
+  return await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+  });
+};
+
+/**
+ * Generate Professional PVC ID Card HTML
  */
 const generateIdCardHTML = (data) => {
   const { name, address, phone, bloodGroup, joiningDate, ngoId, photoUrl } = data;
   
-  // Calculate validity year (5 years from joining)
   const joinYear = new Date(joiningDate).getFullYear();
-  const validYear = joinYear + 5;
+  const validYear = joinYear + 10;
 
   return `
 <!DOCTYPE html>
@@ -70,7 +81,7 @@ const generateIdCardHTML = (data) => {
       height: 100px;
       background: white;
       border-radius: 50%;
-      border: 5px solid #dc2626;
+      border: none;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -259,7 +270,6 @@ const generateIdCardHTML = (data) => {
   alt="NPBB Logo"
   crossorigin="anonymous"
 />
-
         </div>
         <div class="org-name">
           <h1>NARAYAN PUR BIPADER BONDHU</h1>
@@ -326,53 +336,38 @@ const generateIdCardHTML = (data) => {
 };
 
 /**
- * ✅ FIXED: Generate IMAGE from HTML using Puppeteer (NOT PDF)
+ * ✅ FIXED: Generate IMAGE from HTML using Puppeteer
  */
 const generateImageFromHTML = async (html) => {
   let browser;
   try {
-    browser = await puppeteer.launch({
-  args: chromium.args,
-  executablePath: await chromium.executablePath(),
-  headless: chromium.headless,
-});
-
+    browser = await launchBrowser(); // ✅ Use environment-aware launcher
 
     const page = await browser.newPage();
     
-    // Set viewport to match card size (PVC card ratio scaled up for quality)
     await page.setViewport({
       width: 1200,
       height: 758,
-      deviceScaleFactor: 2 // High quality
+      deviceScaleFactor: 2
     });
     
     await page.setBypassCSP(true);
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
-await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.evaluate(async () => {
+      const images = Array.from(document.images);
+      await Promise.all(
+        images.map(img =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+              })
+        )
+      );
+    });
 
-
-await page.evaluate(async () => {
-  const images = Array.from(document.images);
-  await Promise.all(
-    images.map(img =>
-      img.complete
-        ? Promise.resolve()
-        : new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-          })
-    )
-  );
-});
-
-
-
-// ✅ wait until logo & images load
-
-
-
-    // ✅ TAKE SCREENSHOT INSTEAD OF PDF
     const imageBuffer = await page.screenshot({
       type: 'png',
       fullPage: false
@@ -389,7 +384,6 @@ await page.evaluate(async () => {
 
 /**
  * USER APPLY FOR ID CARD
- * POST /api/identity/apply
  */
 export const applyForId = async (req, res) => {
   try {
@@ -403,7 +397,6 @@ export const applyForId = async (req, res) => {
       photoBase64,
     } = req.body;
 
-    // Validate input
     if (!name || !address || !phone || !email || !bloodGroup || !joiningDate || !photoBase64) {
       return res.status(400).json({
         success: false,
@@ -411,7 +404,6 @@ export const applyForId = async (req, res) => {
       });
     }
 
-    // Sanitize and validate email
     const sanitizedEmail = email.toLowerCase().trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(sanitizedEmail)) {
@@ -421,20 +413,19 @@ export const applyForId = async (req, res) => {
       });
     }
 
-    // Check if user already applied
     const existingApplication = await NgoApplication.findOne({ email: sanitizedEmail });
     if (existingApplication) {
       return res.status(200).json({
         success: true,
         message: "Application already exists",
         ngoId: existingApplication.ngoId,
-        imageUrl: existingApplication.imageUrl,
+        status: existingApplication.status,
+        imageUrl: existingApplication.status === "verified" ? existingApplication.imageUrl : null,
         application: existingApplication,
         alreadyExists: true,
       });
     }
 
-    // Generate unique NGO ID
     const year = new Date().getFullYear();
     const randomNum = Math.floor(100000 + Math.random() * 900000);
     const ngoId = `NGO-${randomNum.toString().substring(0, 6)}-${year.toString().substring(2)}`;
@@ -465,7 +456,6 @@ export const applyForId = async (req, res) => {
       "image"
     );
 
-    // Save to database
     const application = await NgoApplication.create({
       name,
       address,
@@ -476,16 +466,16 @@ export const applyForId = async (req, res) => {
       photoUrl: photoUpload.secure_url,
       ngoId,
       imageUrl: imageUpload.secure_url,
-      status: "approved",
+      status: "pending",
     });
 
     console.log("✅ Application created successfully:", ngoId);
 
     res.status(201).json({
       success: true,
-      message: "Application submitted successfully",
+      message: "Application submitted successfully. Waiting for admin verification.",
       ngoId: application.ngoId,
-      imageUrl: application.imageUrl,
+      status: application.status,
       application,
       alreadyExists: false,
     });
@@ -509,7 +499,6 @@ export const applyForId = async (req, res) => {
 
 /**
  * CHECK APPLICATION BY EMAIL
- * GET /api/identity/check/:email
  */
 export const checkApplication = async (req, res) => {
   try {
@@ -547,8 +536,7 @@ export const checkApplication = async (req, res) => {
 };
 
 /**
- * ✅ FIXED: Download ID Card Image (Direct Cloudinary URL - Always works)
- * GET /api/identity/download/:id
+ * Download ID Card Image
  */
 export const downloadImage = async (req, res) => {
   try {
@@ -566,6 +554,14 @@ export const downloadImage = async (req, res) => {
       });
     }
 
+    if (application.status !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message: "Application is not verified yet. Please wait for admin approval.",
+        status: application.status,
+      });
+    }
+
     if (!application.imageUrl) {
       console.error("❌ No image URL in application:", id);
       return res.status(404).json({
@@ -576,7 +572,6 @@ export const downloadImage = async (req, res) => {
 
     console.log("✅ Returning image URL:", application.imageUrl);
 
-    // Return the direct Cloudinary image URL - frontend will handle download
     res.status(200).json({
       success: true,
       imageUrl: application.imageUrl,
@@ -595,7 +590,6 @@ export const downloadImage = async (req, res) => {
 
 /**
  * ADMIN LOGIN
- * POST /api/identity/admin/login
  */
 export const adminLogin = async (req, res) => {
   try {
@@ -627,7 +621,6 @@ export const adminLogin = async (req, res) => {
 
 /**
  * GET ALL APPLICATIONS (Admin)
- * GET /api/identity/admin/applications
  */
 export const getAllApplications = async (req, res) => {
   try {
@@ -659,8 +652,7 @@ export const getAllApplications = async (req, res) => {
 };
 
 /**
- * DELETE APPLICATION (Admin) - WITH CLOUDINARY CLEANUP
- * DELETE /api/identity/admin/application/:id
+ * DELETE APPLICATION (Admin)
  */
 export const deleteApplication = async (req, res) => {
   try {
@@ -684,7 +676,6 @@ export const deleteApplication = async (req, res) => {
       });
     }
 
-    // Delete from Cloudinary
     console.log("🗑️ Deleting files from Cloudinary...");
     
     if (application.photoUrl) {
@@ -695,7 +686,6 @@ export const deleteApplication = async (req, res) => {
       await deleteFromCloudinary(application.imageUrl);
     }
 
-    // Delete from database
     await NgoApplication.findByIdAndDelete(id);
 
     console.log("✅ Application and files deleted successfully");
@@ -715,7 +705,6 @@ export const deleteApplication = async (req, res) => {
 
 /**
  * GET SINGLE APPLICATION (Admin)
- * GET /api/identity/admin/application/:id
  */
 export const getSingleApplication = async (req, res) => {
   try {
@@ -745,6 +734,7 @@ export const getSingleApplication = async (req, res) => {
         imageUrl: application.imageUrl,
         name: application.name,
         ngoId: application.ngoId,
+        status: application.status,
       },
     });
   } catch (error) {
@@ -752,6 +742,90 @@ export const getSingleApplication = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: error.message 
+    });
+  }
+};
+
+/**
+ * VERIFY APPLICATION (Admin)
+ */
+export const verifyApplication = async (req, res) => {
+  try {
+    const adminToken = req.headers.authorization;
+    
+    if (adminToken !== "Bearer admin_authenticated") {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { id } = req.params;
+    
+    const application = await NgoApplication.findById(id);
+    
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    application.status = "verified";
+    await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Application verified successfully",
+      application,
+    });
+  } catch (error) {
+    console.error("❌ Verify application error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
+    });
+  }
+};
+
+/**
+ * REJECT APPLICATION (Admin)
+ */
+export const rejectApplication = async (req, res) => {
+  try {
+    const adminToken = req.headers.authorization;
+    
+    if (adminToken !== "Bearer admin_authenticated") {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { id } = req.params;
+    
+    const application = await NgoApplication.findById(id);
+    
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    application.status = "rejected";
+    await application.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Application rejected",
+      application,
+    });
+  } catch (error) {
+    console.error("❌ Reject application error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
     });
   }
 };

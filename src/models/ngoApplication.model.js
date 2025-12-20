@@ -9,20 +9,19 @@ const ngoApplicationSchema = new mongoose.Schema(
     bloodGroup: { type: String, required: true },
     joiningDate: { type: String, required: true },
 
-    photoUrl: { type: String, required: true }, // Cloudinary URL
+    photoUrl: { type: String, required: true },
     ngoId: { type: String, unique: true, required: true },
 
-    imageUrl: { type: String }, // ✅ CHANGED: Generated ID card image URL (NOT PDF)
+    imageUrl: { type: String },
     status: {
       type: String,
-      enum: ["pending", "approved"],
-      default: "approved",
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
     },
   },
   { timestamps: true }
 );
 
-// Index for faster email lookups
 ngoApplicationSchema.index({ email: 1 });
 
 export default mongoose.model("NgoApplication", ngoApplicationSchema);
