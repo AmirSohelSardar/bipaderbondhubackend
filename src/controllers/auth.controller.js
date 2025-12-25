@@ -5,15 +5,13 @@ import jwt from 'jsonwebtoken';
 
 // Cookie configuration for production
 const getCookieOptions = () => {
-  // Check if we're on Vercel or in production
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-  
   return {
     httpOnly: true,
+    secure: true,
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction,
     path: '/',
+    domain: '.vercel.app', // ✅ ADD THIS LINE
   };
 };
 
