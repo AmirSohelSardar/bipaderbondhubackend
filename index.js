@@ -87,6 +87,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : [
   'http://localhost:5173',
+  
   'https://bipaderbondhu.vercel.app'
 ];
 
@@ -219,6 +220,10 @@ app.get('/api/test-cookie', (req, res) => {
 // ============================================================
 
 // Apply stricter rate limiting to auth routes
+// ✅ Allow Google OAuth without limiter
+app.use('/api/auth/google', authRoutes);
+
+// ✅ Rate-limit only email/password auth
 app.use('/api/auth', authLimiter, authRoutes);
 
 // Apply stricter rate limiting to upload routes

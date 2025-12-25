@@ -150,8 +150,6 @@ export const deletepost = async (req, res, next) => {
  */
 export const updatepost = async (req, res, next) => {
   try {
-    // ✅ FIXED: Must be admin AND owner (not OR)
-    // This now correctly allows: admin OR post owner to update
     if (!req.user.isAdmin && req.user.id !== req.params.userId) {
       return next(errorHandler(403, 'You are not allowed to update this post'));
     }
@@ -161,26 +159,25 @@ export const updatepost = async (req, res, next) => {
       return next(errorHandler(404, 'Post not found'));
     }
 
-    // Additional check: verify the post belongs to the userId in params
     if (post.userId.toString() !== req.params.userId && !req.user.isAdmin) {
       return next(errorHandler(403, 'You are not allowed to update this post'));
     }
 
-    // Validate content length if provided
     if (req.body.content && req.body.content.length > 100000) {
-      return next(errorHandler(400, 'Content is too long. Maximum 100,000 characters allowed'));
+      return next(errorHandler(400, 'Content is too long'));
     }
 
-    // Validate title length if provided
-    if (req.body.title && (req.body.title.length < 3 || req.body.title.length > 200)) {
-      return next(errorHandler(400, 'Title must be between 3 and 200 characters'));
+    if (
+      req.body.title &&
+      (req.body.title.length < 3 || req.body.title.length > 200)
+    ) {
+      return next(errorHandler(400, 'Invalid title length'));
     }
 
-    // 🔥 If image changed, delete old Cloudinary image
-    if (req.body.image && post.image && req.body.image !== post.image) {
-      await deleteFromCloudinary(post.image);
-    }
+    // 🔥 Save old image
+    const oldImage = post.image;
 
+    // ✅ Update fields
     if (req.body.title) {
       post.title = req.body.title;
       post.slug = req.body.title
@@ -195,13 +192,18 @@ export const updatepost = async (req, res, next) => {
     if (req.body.category) post.category = req.body.category;
     if (req.body.image) post.image = req.body.image;
 
+    // ✅ SAVE ONLY ONCE
     const updatedPost = await post.save();
+
+    // ✅ Delete old image AFTER successful save
+    if (req.body.image && oldImage && oldImage !== req.body.image) {
+      await deleteFromCloudinary(oldImage);
+    }
 
     res.status(200).json(updatedPost);
   } catch (error) {
-    // Handle duplicate slug error
     if (error.code === 11000) {
-      return next(errorHandler(400, 'A post with this title already exists'));
+      return next(errorHandler(400, 'Post title already exists'));
     }
     next(error);
   }
