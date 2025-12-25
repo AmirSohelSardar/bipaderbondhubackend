@@ -98,11 +98,10 @@ app.use(
 
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
-      } 
-      else {
-        console.log('❌ Blocked Origin:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
+      } else {
+  console.log('❌ Blocked Origin:', origin);
+  callback(null, true); // ✅ ALLOW IT
+}
     },
     credentials: true, // ✅ CRITICAL: Allow cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
