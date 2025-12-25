@@ -78,10 +78,13 @@ export const getposts = async (req, res, next) => {
       ];
     }
 
-    const posts = await Post.find(query)
-      .sort({ updatedAt: sortOrder })
-      .skip(startIndex)
-      .limit(limit);
+   const posts = await Post.find(query)
+  .select('title image category slug createdAt') // 🚀 REMOVE content
+  .sort({ updatedAt: sortOrder })
+  .skip(startIndex)
+  .limit(limit)
+  .lean(); // 🚀 VERY IMPORTANT
+
 
     const totalPosts = await Post.countDocuments(query);
 
@@ -208,3 +211,18 @@ export const updatepost = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getHomePosts = async (req, res, next) => {
+  try {
+    const posts = await Post.find({})
+      .select('title image category slug createdAt')
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean();
+
+    res.status(200).json(posts);
+  } catch (error) {
+    next(error);
+  }
+};
+
