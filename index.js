@@ -59,7 +59,13 @@ const limiter = rateLimit({
 });
 
 // Apply rate limiting to all routes
-app.use('/api/', limiter);
+// Apply general limiter EXCEPT Google OAuth
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth/google')) {
+    return next(); // 🚀 skip limiter
+  }
+  limiter(req, res, next);
+});
 
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
@@ -98,19 +104,18 @@ app.use(
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-  console.log('❌ Blocked Origin:', origin);
-  callback(null, true); // ✅ ALLOW IT
-}
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true, // ✅ CRITICAL: Allow cookies
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['set-cookie'], // ✅ CRITICAL: Expose cookies
-    maxAge: 86400, // Cache preflight requests for 24 hours
+    exposedHeaders: ['set-cookie'],
   })
 );
+
 
 // ✅ Handle preflight requests
 app.options('*', cors());
