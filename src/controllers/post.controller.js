@@ -226,3 +226,17 @@ export const getHomePosts = async (req, res, next) => {
   }
 };
 
+
+export const getPostBySlug = async (req, res, next) => {
+  try {
+    const post = await Post.findOne({ slug: req.params.slug }).lean();
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    res.status(200).json(post);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
