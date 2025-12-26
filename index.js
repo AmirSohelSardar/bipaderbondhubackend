@@ -27,6 +27,9 @@ import cookieParser from 'cookie-parser';
 import uploadRoutes from './src/routes/upload.route.js';
 import { connectDB, testConnection, isConnected } from './src/config/db.js';
 import identityRoutes from "./src/routes/identity.route.js";
+import visitorRoutes from './src/routes/visitor.route.js';
+
+
 
 
 
@@ -239,6 +242,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/post', postRoutes);
 app.use('/api/comment', commentRoutes);
 app.use("/api/identity", identityRoutes);
+app.use('/api/visitor', visitorRoutes);
+
 
 
 // ============================================================
