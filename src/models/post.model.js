@@ -16,7 +16,6 @@ const postSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       minlength: 3,
       maxlength: 200,
@@ -74,14 +73,7 @@ postSchema.pre('save', function () {
 });
 
 // ✅ Add instance method to generate URL-friendly slug
-postSchema.methods.generateSlug = function () {
-  return this.title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9 ]/g, '')
-    .split(' ')
-    .join('-');
-};
+
 
 // ✅ Static method: Find posts by category with pagination
 postSchema.statics.findByCategory = function (category, page = 1, limit = 9) {

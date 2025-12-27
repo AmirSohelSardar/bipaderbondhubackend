@@ -2,6 +2,8 @@ import Post from '../models/post.model.js';
 import { errorHandler } from '../utils/error.js';
 import { deleteFromCloudinary } from '../config/cloudinary.js';
 import Comment from '../models/comment.model.js';
+import { generateSlug } from '../utils/slug.js';
+
 
 /**
  * ✅ CREATE POST (Admin only)
@@ -28,21 +30,17 @@ export const create = async (req, res, next) => {
       return next(errorHandler(400, 'Title must be between 3 and 200 characters'));
     }
 
-    const slug = title
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9 ]/g, '')
-      .split(' ')
-      .join('-');
+  const slug = await generateSlug(title, Post);
 
-    const newPost = new Post({
-      title,
-      content,
-      image: image || '',
-      category: category || 'uncategorized',
-      slug,
-      userId: req.user.id,
-    });
+const newPost = new Post({
+  title,
+  content,
+  image: image || '',
+  category: category || 'uncategorized',
+  slug,
+  userId: req.user.id,
+});
+
 
     const savedPost = await newPost.save();
 
@@ -183,12 +181,8 @@ export const updatepost = async (req, res, next) => {
     // ✅ Update fields
     if (req.body.title) {
       post.title = req.body.title;
-      post.slug = req.body.title
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9 ]/g, '')
-        .split(' ')
-        .join('-');
+      post.slug = await generateSlug(req.body.title, Post);
+
     }
 
     if (req.body.content) post.content = req.body.content;
