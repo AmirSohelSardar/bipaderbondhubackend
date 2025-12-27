@@ -1,29 +1,30 @@
 import slugify from 'slugify';
 
 export const generateSlug = async (title, Post) => {
+  // 1️⃣ Try slugify first
   let baseSlug = slugify(title, {
-    lower: false,      // keep Bangla + English
+    lower: false,
     trim: true,
-    strict: false,    // allow mixed language
+    strict: false,
   });
 
-  // ✅ ABSOLUTE GUARANTEE: slug will NEVER be empty
-  if (!baseSlug || baseSlug.length === 0) {
+  // 2️⃣ If slugify fails (Bangla edge cases)
+  if (!baseSlug || baseSlug.trim().length === 0) {
     baseSlug = title
       .trim()
-      .replace(/\s+/g, '-')       // replace spaces with -
-      .replace(/[\/\\?#%]/g, ''); // remove URL-breaking characters
+      .replace(/\s+/g, '-')
+      .replace(/[\/\\?#%]/g, '');
   }
 
-  // 🔐 LAST SAFETY NET (impossible to fail)
-  if (!baseSlug || baseSlug.length === 0) {
+  // 3️⃣ Absolute last fallback (NEVER empty)
+  if (!baseSlug || baseSlug.trim().length === 0) {
     baseSlug = `post-${Date.now()}`;
   }
 
   let slug = baseSlug;
   let i = 1;
 
-  // ✅ Ensure slug uniqueness
+  // 4️⃣ Ensure uniqueness
   while (await Post.findOne({ slug })) {
     slug = `${baseSlug}-${i}`;
     i++;

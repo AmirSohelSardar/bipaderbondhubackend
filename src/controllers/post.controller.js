@@ -31,6 +31,9 @@ export const create = async (req, res, next) => {
     }
 
   const slug = await generateSlug(title, Post);
+  
+
+
 
 const newPost = new Post({
   title,
