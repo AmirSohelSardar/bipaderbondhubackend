@@ -272,12 +272,13 @@ const generateIdCardHTML = (data) => {
 />
         </div>
         <div class="org-name">
-          <h1>NARAYAN PUR BIPADER BONDHU</h1>
-          <p>Serving Humanity with Dedication</p>
-        </div>
+  <h1>NARAYAN PUR BIPADER BONDHU WELFARE SOCIETY</h1>
+  <p>Serving Humanity with Dedication</p>
+</div>
+
       </div>
       <div class="member-badge">
-        MEMBER<br>ID
+       IDENTITY<br>CARD
       </div>
     </div>
     
@@ -326,9 +327,12 @@ const generateIdCardHTML = (data) => {
       </div>
     </div>
     
+   
+
     <div class="footer">
-      narayanpurbipaderbondhu@gmail.com
-    </div>
+  Website: www.bipaderbondhu.in |  Email: narayanpurbipaderbondhu@gmail.com
+</div>
+
   </div>
 </body>
 </html>
@@ -428,7 +432,7 @@ export const applyForId = async (req, res) => {
 
     const year = new Date().getFullYear();
     const randomNum = Math.floor(100000 + Math.random() * 900000);
-    const ngoId = `NGO-${randomNum.toString().substring(0, 6)}-${year.toString().substring(2)}`;
+    const ngoId = `NPB-${randomNum.toString().substring(0, 6)}-${year.toString().substring(2)}`;
 
     console.log("📤 Uploading photo to Cloudinary...");
     const photoBuffer = Buffer.from(photoBase64.split(",")[1], "base64");
