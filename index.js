@@ -96,6 +96,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : [
   'http://localhost:5173',
+  'https://www.bipaderbondhu.in',
+
   
   'https://bipaderbondhu.vercel.app'
 ];
