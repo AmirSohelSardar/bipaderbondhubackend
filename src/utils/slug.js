@@ -1,16 +1,11 @@
 import slugify from 'slugify';
 
 export const generateSlug = async (title, Post) => {
-  let baseSlug = slugify(title, {
-    lower: true,
-    strict: true,
+  const baseSlug = slugify(title, {
+    lower: false,   // keep original language
     trim: true,
+    strict: false, // allow Bangla + English + mixed
   });
-
-  // 👉 Bangla title হলে fallback
-  if (!baseSlug) {
-    baseSlug = 'bangla-motivation';
-  }
 
   let slug = baseSlug;
   let i = 1;
