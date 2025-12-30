@@ -137,13 +137,13 @@ const SIGNATURE_BASE64 =
       flex-shrink: 0;
     }
     
-    .card-body {
-      display: flex;
-      padding: 30px 35px 15px 35px;
-      gap: 30px;
-      color: white;
-      height: calc(758px - 140px - 50px);
-    }
+  .card-body {
+  display: flex;
+  padding: 30px 35px;
+  gap: 30px;
+  color: white;
+  height: calc(758px - 140px - 42px);
+}
     
     .photo-section {
       flex-shrink: 0;
@@ -252,16 +252,21 @@ const SIGNATURE_BASE64 =
       text-align: center;
     }
     
-   .footer {
+  .footer {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  font-size: 18px;
+  text-align: center;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.9);
   background: rgba(0, 0, 0, 0.1);
-  padding: 8px 20px;
+  padding: 12px 20px;
   border-top: 2px solid rgba(255, 255, 255, 0.2);
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
   </style>
@@ -336,6 +341,7 @@ const SIGNATURE_BASE64 =
       </div>
     </div>
     
+    </div> 
    
 <div class="footer">
   <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
