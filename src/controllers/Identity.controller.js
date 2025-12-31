@@ -111,12 +111,20 @@ const generateIdCardHTML = (data) => {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-      .reg-no {
-  font-size: 18px;
+  .org-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.reg-no-inline {
+  font-size: 16px;
   font-weight: bold;
   color: #1e40af;
-  margin-top: 4px;
+  white-space: nowrap;
 }
+
 
     
     .org-name p {
@@ -254,45 +262,56 @@ const generateIdCardHTML = (data) => {
       text-align: center;
     }
     
-   .footer {
+ .footer {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(0, 0, 0, 0.1);
-  padding: 8px 30px;
-  border-top: 2px solid rgba(255, 255, 255, 0.2);
+  align-items: flex-end;
+  padding: 14px 35px;
+  background: rgba(0, 0, 0, 0.12);
+  border-top: 2px solid rgba(255, 255, 255, 0.25);
 }
 
+
 .footer-left {
-  text-align: left;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.footer-left span {
+  display: block;
+}
+
+
+.signature-img {
+  width: 200px;           /* Bigger */
+  margin-bottom: 6px;
+  
+  filter: invert(1) brightness(1.3) contrast(1.2);
 }
 
 .footer-right {
   text-align: center;
+  transform: translateY(-12px);
 }
 
-.signature-img {
-  width: 140px;
-  height: auto;
-   image-rendering: auto;
-}
 
 .signature-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: bold;
-  margin-top: 2px;
 }
 
 .signature-org {
   font-size: 13px;
   font-style: italic;
 }
+ 
+
+
+
 
 
   </style>
@@ -308,11 +327,15 @@ const generateIdCardHTML = (data) => {
   crossorigin="anonymous"
 />
         </div>
-      <div class="org-name">
-  <h1>NARAYAN PUR BIPADER BONDHU WELFARE SOCIETY</h1>
-  <div class="reg-no">Reg: No. S0042589 of 2024-2025</div>
-  <p>Serving Humanity with Dedication</p>
+     <div class="org-name">
+  <div class="org-title-row">
+    <h1>NARAYAN PUR BIPADER BONDHU WELFARE SOCIETY</h1>
+    <span class="reg-no-inline">Reg. No. S0042589 of 2024-2025</span>
+  </div>
+  <p>Serving Humanity with Dedication • Government Authorized NGO</p>
+
 </div>
+
 
       </div>
       <div class="member-badge">
@@ -368,9 +391,11 @@ const generateIdCardHTML = (data) => {
    
 
   <div class="footer">
-  <div class="footer-left">
-    Website: www.bipaderbondhu.in | Email: narayanpurbipaderbondhu@gmail.com
-  </div>
+<div class="footer-left">
+  <span>Website: www.bipaderbondhu.in</span>
+  <span>Email: narayanpurbipaderbondhu@gmail.com</span>
+</div>
+
 
   <div class="footer-right">
     <img
