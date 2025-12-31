@@ -135,6 +135,14 @@ const generateIdCardHTML = (data) => {
   color: #1e40af;
   white-space: nowrap;
 }
+.estd-inline {
+  margin-left: 8px;        /* small clean gap */
+  font-size: 14px;         /* slightly smaller than Reg. No. */
+  font-weight: 600;
+  color: #374151;          /* professional dark gray */
+  white-space: nowrap;
+}
+
 
 
     
@@ -308,35 +316,36 @@ const generateIdCardHTML = (data) => {
 
 /* RIGHT SIDE */
 .footer-right {
-  transform: translateY(-6px);
+  transform: translateY(-8px); /* slightly lifted for balance */
 }
 
 /* WHITE SIGNATURE CARD */
 .signature-card {
   background: #ffffff;
-  padding: 12px 18px;
+  padding: 14px 22px;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 
-/* PURE BLACK SIGNATURE */
+/* BIG, DARK, PVC-READABLE SIGNATURE */
 .signature-img {
-  width: 200px;
-  margin-bottom: 6px;
+  width: 260px;                /* 🔥 BIGGER */
+  margin-bottom: 8px;
+  filter: contrast(1.25) brightness(0.95); /* 🔥 darker strokes */
 }
 
 /* TEXT */
 .signature-text {
-  font-size: 14px;
-  font-weight: bold;
-  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  color: #000000;              /* pure black */
 }
 
 .signature-org {
-  font-size: 12px;
+  font-size: 13px;
   font-style: italic;
-  color: #374151;
+  color: #111827;
 }
 
 /* CONTACT CARD (LIKE SIGNATURE STYLE) */
@@ -364,7 +373,7 @@ const generateIdCardHTML = (data) => {
 .contact-icon {
   width: 18px;
   height: 18px;
-  fill: #f59e0b;             /* gold match */
+  fill: #000000;            /* gold match */
   flex-shrink: 0;
 }
 
@@ -401,7 +410,12 @@ const generateIdCardHTML = (data) => {
     <span class="org-line1">NARAYAN PUR BIPADER BONDHU WELFARE</span>
     <span class="org-line2">
       SOCIETY
-      <span class="reg-no-inline">Reg. No. S0042589 of 2024-2025</span>
+     <span class="reg-no-inline">
+  Reg. No. S0042589 of 2024-2025
+  <span class="estd-inline">• ESTD: 2020</span>
+</span>
+
+
     </span>
   </h1>
 
