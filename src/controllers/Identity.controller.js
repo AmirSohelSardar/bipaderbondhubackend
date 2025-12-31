@@ -59,6 +59,7 @@ const generateIdCardHTML = (data) => {
   overflow: hidden;
   word-break: break-word; /* breaks long words */
   white-space: normal;    /* allows wrapping */
+  text-overflow: ellipsis;
 }
 
 
