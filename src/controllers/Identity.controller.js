@@ -54,7 +54,7 @@ const generateIdCardHTML = (data) => {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #6366f1 100%);
-  border-radius: 35px;   /* inner rounded corners */
+  border-radius: 22px;   /* inner rounded corners */
   overflow: hidden;
   position: relative;
 }
@@ -169,16 +169,10 @@ const generateIdCardHTML = (data) => {
    .card-wrapper {
   width: 1220px;
   height: 778px;
-  padding: 10px;
-  border-radius: 42px; /* semi-round outer border */
-  background: linear-gradient(
-    135deg,
-    #f59e0b,
-    #fbbf24,
-    #2563eb,
-    #4f46e5
-  );
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  border-radius: 26px; /* semi-round outer border */
+  background:  #d4af37; 
+  box-shadow: 0 10px 28px rgba(212, 175, 55, 0.45);
 }
  
     .photo-section {
@@ -348,7 +342,7 @@ const generateIdCardHTML = (data) => {
 /* CONTACT CARD (LIKE SIGNATURE STYLE) */
 .contact-card {
   background: #ffffff;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.15);
   min-width: 320px;
@@ -357,29 +351,29 @@ const generateIdCardHTML = (data) => {
 /* EACH ROW */
 .contact-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 10px;                 /* 👈 controlled spacing */
+  margin-bottom: 8px;
 }
 
 .contact-row:last-child {
   margin-bottom: 0;
 }
 
-/* LABEL */
-.contact-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #92400e; /* gold tone */
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+/* ICON */
+.contact-icon {
+  width: 18px;
+  height: 18px;
+  fill: #f59e0b;             /* gold match */
+  flex-shrink: 0;
 }
 
-/* VALUE */
+/* VALUE TEXT */
 .contact-value {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
+  white-space: nowrap;
 }
 
  
@@ -470,18 +464,28 @@ const generateIdCardHTML = (data) => {
    
 
 <div class="footer">
-  <div class="footer-left">
-    <div class="contact-card">
-      <div class="contact-row">
-        <span class="contact-label">Website</span>
-        <span class="contact-value">www.bipaderbondhu.in</span>
-      </div>
-      <div class="contact-row">
-        <span class="contact-label">Email</span>
-        <span class="contact-value">narayanpurbipaderbondhu@gmail.com</span>
-      </div>
+ <div class="footer-left">
+  <div class="contact-card">
+
+    <!-- WEBSITE -->
+    <div class="contact-row">
+      <svg class="contact-icon" viewBox="0 0 24 24">
+        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm7.93 9h-3.17a15.6 15.6 0 00-1.43-5.02A8.03 8.03 0 0119.93 11zM12 4.07c.83 1.1 1.93 3.17 2.36 5.93H9.64c.43-2.76 1.53-4.83 2.36-5.93z"/>
+      </svg>
+      <span class="contact-value">www.bipaderbondhu.in</span>
     </div>
+
+    <!-- EMAIL -->
+    <div class="contact-row">
+      <svg class="contact-icon" viewBox="0 0 24 24">
+        <path d="M2 4h20v16H2V4zm10 7L4 6v12h16V6l-8 5z"/>
+      </svg>
+      <span class="contact-value">narayanpurbipaderbondhu@gmail.com</span>
+    </div>
+
   </div>
+</div>
+
 
   <div class="footer-right">
     <div class="signature-card">
