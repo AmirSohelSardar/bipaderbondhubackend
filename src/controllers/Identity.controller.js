@@ -103,19 +103,29 @@ const generateIdCardHTML = (data) => {
       flex: 1;
     }
     
-    .org-name h1 {
-      font-size: 36px;
-      font-weight: bold;
-      color: #2563eb;
-      line-height: 1.2;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+   .org-name h1 {
+  font-size: 36px;
+  font-weight: bold;
+  color: #2563eb;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
   .org-title-row {
   display: flex;
   align-items: baseline;
   gap: 14px;
   flex-wrap: wrap;
+}
+  .org-line1,
+.org-line2 {
+  display: block;
+}
+
+.org-line2 {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
 }
 
 .reg-no-inline {
@@ -327,14 +337,18 @@ const generateIdCardHTML = (data) => {
   crossorigin="anonymous"
 />
         </div>
-     <div class="org-name">
-  <div class="org-title-row">
-    <h1>NARAYAN PUR BIPADER BONDHU WELFARE SOCIETY</h1>
-    <span class="reg-no-inline">Reg. No. S0042589 of 2024-2025</span>
-  </div>
-  <p>Serving Humanity with Dedication • Government Authorized NGO</p>
+   <div class="org-name">
+  <h1>
+    <span class="org-line1">NARAYAN PUR BIPADER BONDHU WELFARE</span>
+    <span class="org-line2">
+      SOCIETY
+      <span class="reg-no-inline">Reg. No. S0042589 of 2024-2025</span>
+    </span>
+  </h1>
 
+  <p>Serving Humanity with Dedication • Government Authorized NGO</p>
 </div>
+
 
 
       </div>
