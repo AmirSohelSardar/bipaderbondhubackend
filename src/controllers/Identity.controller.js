@@ -111,6 +111,13 @@ const generateIdCardHTML = (data) => {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+      .reg-no {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1e40af;
+  margin-top: 4px;
+}
+
     
     .org-name p {
       font-size: 18px;
@@ -137,6 +144,7 @@ const generateIdCardHTML = (data) => {
       gap: 30px;
       color: white;
       height: calc(758px - 140px - 50px);
+      padding-bottom: 70px;
     }
     
     .photo-section {
@@ -246,18 +254,47 @@ const generateIdCardHTML = (data) => {
       text-align: center;
     }
     
-    .footer {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: 18px;
-      color: rgba(255, 255, 255, 0.9);
-      background: rgba(0, 0, 0, 0.1);
-      padding: 8px 0;
-      border-top: 2px solid rgba(255, 255, 255, 0.2);
-    }
+   .footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.1);
+  padding: 8px 30px;
+  border-top: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.footer-left {
+  text-align: left;
+}
+
+.footer-right {
+  text-align: center;
+}
+
+.signature-img {
+  width: 140px;
+  height: auto;
+   image-rendering: auto;
+}
+
+.signature-text {
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+.signature-org {
+  font-size: 13px;
+  font-style: italic;
+}
+
+
   </style>
 </head>
 <body>
@@ -271,8 +308,9 @@ const generateIdCardHTML = (data) => {
   crossorigin="anonymous"
 />
         </div>
-        <div class="org-name">
+      <div class="org-name">
   <h1>NARAYAN PUR BIPADER BONDHU WELFARE SOCIETY</h1>
+  <div class="reg-no">Reg: No. S0042589 of 2024-2025</div>
   <p>Serving Humanity with Dedication</p>
 </div>
 
@@ -329,11 +367,23 @@ const generateIdCardHTML = (data) => {
     
    
 
-    <div class="footer">
-  Website: www.bipaderbondhu.in |  Email: narayanpurbipaderbondhu@gmail.com
+  <div class="footer">
+  <div class="footer-left">
+    Website: www.bipaderbondhu.in | Email: narayanpurbipaderbondhu@gmail.com
+  </div>
+
+  <div class="footer-right">
+    <img
+      src="data:image/png;base64,PASTE_YOUR_SIGNATURE_BASE64_HERE"
+      alt="President Signature"
+      class="signature-img"
+      crossorigin="anonymous"
+    />
+    <div class="signature-text">Signature of President</div>
+    <div class="signature-org">Narayan Pur Bipader Bondhu Welfare Society</div>
+  </div>
 </div>
 
-  </div>
 </body>
 </html>
   `;
