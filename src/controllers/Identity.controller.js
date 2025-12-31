@@ -48,6 +48,19 @@ const generateIdCardHTML = (data) => {
   justify-content: center;
   align-items: center;
 }
+  .address-value {
+  max-width: 520px;        /* protects QR & Unique ID */
+  line-height: 1.3;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;   /* ONLY 2 lines */
+
+  overflow: hidden;
+  word-break: break-word; /* breaks long words */
+  white-space: normal;    /* allows wrapping */
+}
+
 
     
    .id-card {
@@ -214,14 +227,15 @@ const generateIdCardHTML = (data) => {
     }
     
     .info-item {
-      background: rgba(255, 255, 255, 0.15);
-      padding: 12px 20px;
-      border-radius: 15px;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      font-size: 26px;
-    }
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 20px;
+  border-radius: 15px;
+  display: flex;
+  align-items: flex-start; /* 🔥 THIS LINE FIXES EVERYTHING */
+  gap: 15px;
+  font-size: 26px;
+}
+
     
     .info-label {
       color: #fbbf24;
@@ -438,10 +452,13 @@ const generateIdCardHTML = (data) => {
       <div class="info-section">
         <div class="member-name">${name}</div>
         
-        <div class="info-item">
-          <span class="info-label">Address:</span>
-          <span class="info-value">${address}</span>
-        </div>
+       <div class="info-item">
+  <span class="info-label">Address:</span>
+  <span class="info-value address-value">
+    ${address}
+  </span>
+</div>
+
         
         <div class="info-item">
           <span class="info-label">Phone:</span>
