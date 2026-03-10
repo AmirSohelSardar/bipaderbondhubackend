@@ -247,6 +247,28 @@ app.use("/api/identity", identityRoutes);
 app.use('/api/visitor', visitorRoutes);
 
 
+const BloodCert = mongoose.model("BloodCert", new mongoose.Schema({
+  name: String, email: String, phone: String, address: String,
+  bloodGroup: String, donationCount: Number, donationDate: Date,
+  photoUrl: String, certificateUrl: String,
+}, { timestamps: true }));
+
+app.get("/api/blood-certificates", async (req, res) => {
+  const data = await BloodCert.find().sort({ createdAt: -1 });
+  res.json({ success: true, data });
+});
+
+app.post("/api/blood-certificates", async (req, res) => {
+  const cert = await BloodCert.create(req.body);
+  res.json({ success: true, data: cert });
+});
+
+app.delete("/api/blood-certificates/:id", async (req, res) => {
+  await BloodCert.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+
 
 // ============================================================
 // 🚫 404 HANDLER
