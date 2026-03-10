@@ -251,7 +251,7 @@ app.use('/api/visitor', visitorRoutes);
 const BloodCert = mongoose.model("BloodCert", new mongoose.Schema({
   name: String, email: String, phone: String, address: String,
   bloodGroup: String, donationCount: Number, donationDate: Date,
-  photoUrl: String, certificateUrl: String,
+  photoUrl: String, certificateUrl: String,campName: String, 
 }, { timestamps: true }));
 
 app.get("/api/blood-certificates", async (req, res) => {
