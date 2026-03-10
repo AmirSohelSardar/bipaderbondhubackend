@@ -28,6 +28,7 @@ import uploadRoutes from './src/routes/upload.route.js';
 import { connectDB, testConnection, isConnected } from './src/config/db.js';
 import identityRoutes from "./src/routes/identity.route.js";
 import visitorRoutes from './src/routes/visitor.route.js';
+import mongoose from 'mongoose';
 
 
 
