@@ -29,7 +29,7 @@ import { connectDB, testConnection, isConnected } from './src/config/db.js';
 import identityRoutes from "./src/routes/identity.route.js";
 import visitorRoutes from './src/routes/visitor.route.js';
 import mongoose from 'mongoose';
-import invitationRoutes from "./routes/invitation.route.js";
+
 
 
 
@@ -99,8 +99,6 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [
   'http://localhost:5173',
   'https://www.bipaderbondhu.in',
-  'http://localhost:3000',
-  'https://bipaderbondhu.in',
 
   
   'https://bipaderbondhu.vercel.app'
@@ -249,8 +247,6 @@ app.use('/api/post', postRoutes);
 app.use('/api/comment', commentRoutes);
 app.use("/api/identity", identityRoutes);
 app.use('/api/visitor', visitorRoutes);
-
-app.use("/api/invitations", invitationRoutes);
 
 
 const BloodCert = mongoose.model("BloodCert", new mongoose.Schema({
