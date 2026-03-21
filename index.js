@@ -29,6 +29,7 @@ import { connectDB, testConnection, isConnected } from './src/config/db.js';
 import identityRoutes from "./src/routes/identity.route.js";
 import visitorRoutes from './src/routes/visitor.route.js';
 import mongoose from 'mongoose';
+import invitationRoutes from "./routes/invitation.route.js";
 
 
 
@@ -247,6 +248,8 @@ app.use('/api/post', postRoutes);
 app.use('/api/comment', commentRoutes);
 app.use("/api/identity", identityRoutes);
 app.use('/api/visitor', visitorRoutes);
+
+app.use("/api/invitations", invitationRoutes);
 
 
 const BloodCert = mongoose.model("BloodCert", new mongoose.Schema({

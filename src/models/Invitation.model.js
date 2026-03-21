@@ -17,3 +17,21 @@
 // );
 
 // export default mongoose.model("Invitation", invitationSchema);
+
+
+
+import mongoose from "mongoose";
+
+const invitationSchema = new mongoose.Schema({
+  name:          { type: String, required: true },
+  address:       { type: String, default: "" },
+  whatsapp:      { type: String, required: true },
+  eventName:     { type: String, required: true },
+  eventDate:     { type: Date },
+  eventLocation: { type: String, required: true },
+  inviteLink:    { type: String, default: "" },
+  imageUrl:      { type: String, default: "" },
+  waLink:        { type: String, default: "" },
+}, { timestamps: true });
+
+export default mongoose.model("Invitation", invitationSchema);
