@@ -99,6 +99,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [
   'http://localhost:5173',
   'https://www.bipaderbondhu.in',
+  'http://localhost:3000',
+  'https://bipaderbondhu.in',
 
   
   'https://bipaderbondhu.vercel.app'
